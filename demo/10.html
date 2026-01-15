@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雄獅風 - 雙月日期選擇器</title>
+    <style>
+      body {
+        font-family: "Microsoft JhengHei", sans-serif;
+        padding: 20px;
+        background: #f9f9f9;
+      }
+      .date-wrap {
+        position: relative;
+        width: fit-content;
+        margin: 50px auto;
+      }
+
+      /* 欄位設計 */
+      .selector-group {
+        display: flex;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .input-item {
+        padding: 12px 25px;
+        cursor: pointer;
+        min-width: 160px;
+        border-right: 1px solid #eee;
+        position: relative;
+        transition: 0.2s;
+      }
+      .input-item:last-child {
+        border-right: none;
+      }
+      .input-item.active {
+        background: #fff1f0;
+      }
+      .input-item.active::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: #ff625d;
+      }
+
+      .label {
+        font-size: 12px;
+        color: #888;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .value {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        display: block;
+        height: 20px;
+        line-height: 20px;
+      }
+      .clear-x {
+        position: absolute;
+        right: 10px;
+        top: 22px;
+        color: #ccc;
+        font-size: 14px;
+        visibility: hidden;
+      }
+      .input-item:hover .clear-x {
+        visibility: visible;
+      }
+
+      /* 日曆面板 */
+      .calendar-panel {
+        position: absolute;
+        top: 75px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 1000;
+        display: none;
+        width: 640px;
+      }
+      .calendar-panel.show {
+        display: block;
+      }
+      .month-container {
+        display: flex;
+        gap: 30px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      th {
+        font-size: 13px;
+        color: #999;
+        padding-bottom: 10px;
+        font-weight: normal;
+      }
+      td {
+        height: 50px;
+        text-align: center;
+        cursor: pointer;
+        font-size: 14px;
+        position: relative;
+      }
+
+      /* 狀態顏色：嚴格矩形無圓角 */
+      td.disabled {
+        color: #eee !important;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+      td.selected {
+        background: #ff625d !important;
+        color: #fff !important;
+        z-index: 2;
+        border-radius: 4px;
+      }
+      td.in-range,
+      td.hover-range {
+        background: #fff1f0 !important;
+        border-radius: 0 !important;
+      }
+
+      .date-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+      }
+      .date-num {
+        font-weight: bold;
+        position: relative;
+        z-index: 2;
+      }
+      .txt {
+        font-size: 11px;
+        height: 12px;
+        line-height: 12px;
+        margin-top: 2px;
+        position: relative;
+        z-index: 2;
+        color: inherit;
+      }
+      td.in-range .txt,
+      td.hover-range .txt {
+        color: #ff625d;
+      }
+
+      .nav-bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .nav-btn {
+        background: #fff;
+        border: 1px solid #eee;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        color: #ff625d;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s;
+      }
+      .nav-btn:hover {
+        background: #ff625d;
+        color: #fff;
+      }
+      .nav-btn:disabled {
+        color: #ddd;
+        border-color: #f5f5f5;
+        cursor: default;
+      }
+      .nav-btn:disabled:hover {
+        background: #fff;
+        color: #ddd;
+      }
+      .month-title {
+        font-weight: bold;
+        font-size: 17px;
+        flex: 1;
+        text-align: center;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="date-wrap">
+      <div class="selector-group">
+        <div class="input-item" id="startBtn" onclick="toggleCalendar('start')">
+          <span class="label">去程日期</span>
+          <span class="value" id="startVal"></span>
+          <span class="clear-x" onclick="resetAll(event)">✕</span>
+        </div>
+        <div class="input-item" id="endBtn" onclick="toggleCalendar('end')">
+          <span class="label">回程日期</span>
+          <span class="value" id="endVal"></span>
+          <span class="clear-x" onclick="resetEnd(event)">✕</span>
+        </div>
+      </div>
+
+      <div class="calendar-panel" id="calendarPanel">
+        <div class="nav-bar">
+          <button class="nav-btn" onclick="moveMonth(-1)" id="prevM">❮</button>
+          <div id="mTitle1" class="month-title"></div>
+          <div id="mTitle2" class="month-title"></div>
+          <button class="nav-btn" onclick="moveMonth(1)">❯</button>
+        </div>
+        <div class="month-container">
+          <div id="table1" style="flex: 1"></div>
+          <div id="table2" style="flex: 1"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // --- 初始預設日期設定 ---
+      let startDate = new Date(2026, 0, 14); // 2026/01/14 (0是1月)
+      let endDate = new Date(2026, 2, 14); // 2026/03/14 (2是3月)
+      let viewDate = new Date(2026, 0, 1); // 視角預設從1月開始
+      let editMode = "start";
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      function toggleCalendar(mode) {
+        const panel = document.getElementById("calendarPanel");
+        if (panel.classList.contains("show") && editMode === mode) {
+          panel.classList.remove("show");
+        } else {
+          editMode = mode;
+          // 如果點擊回程，將視角移到出發月份以便觀察區間
+          if (mode === "end" && startDate) {
+            viewDate = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+          }
+          panel.classList.add("show");
+          render();
+        }
+      }
+
+      function render() {
+        const m1 = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const m2 = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+
+        document.getElementById("mTitle1").innerText = `${m1.getFullYear()}年${m1.getMonth() + 1}月`;
+        document.getElementById("mTitle2").innerText = `${m2.getFullYear()}年${m2.getMonth() + 1}月`;
+        document.getElementById("table1").innerHTML = drawTable(m1);
+        document.getElementById("table2").innerHTML = drawTable(m2);
+
+        // 限制不能翻到今天以前的月份
+        document.getElementById("prevM").disabled = m1 <= new Date(today.getFullYear(), today.getMonth(), 1);
+
+        document.getElementById("startBtn").classList.toggle("active", editMode === "start");
+        document.getElementById("endBtn").classList.toggle("active", editMode === "end");
+
+        updateDisplay();
+        attachHoverEvents();
+      }
+
+      function drawTable(monthDate) {
+        const y = monthDate.getFullYear(),
+          m = monthDate.getMonth();
+        const firstDay = new Date(y, m, 1).getDay();
+        const lastDate = new Date(y, m + 1, 0).getDate();
+
+        let html = "<table><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>";
+        for (let i = 0; i < firstDay; i++) html += "<td></td>";
+
+        for (let d = 1; d <= lastDate; d++) {
+          const curr = new Date(y, m, d);
+          let cls = "";
+          let text = "";
+
+          // 模式限制邏輯
+          if (curr < today) {
+            cls = "disabled";
+          } else if (editMode === "start") {
+            if (endDate && curr >= endDate) cls = "disabled";
+          } else if (editMode === "end") {
+            if (startDate && curr <= startDate) cls = "disabled";
+          }
+
+          if (startDate && curr.getTime() === startDate.getTime()) {
+            cls += " selected";
+            text = "出發";
+          }
+          if (endDate && curr.getTime() === endDate.getTime()) {
+            cls += " selected";
+            text = "回程";
+          }
+          if (startDate && endDate && curr > startDate && curr < endDate) {
+            cls += " in-range";
+          }
+
+          html += `<td class="${cls}" data-date="${y}-${m + 1}-${d}" onclick="selectDate(${y},${m},${d})">
+                        <div class="date-box">
+                            <span class="date-num">${d}</span>
+                            <span class="txt">${text}</span>
+                        </div>
+                    </td>`;
+          if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+        }
+        return html + "</table>";
+      }
+
+      function selectDate(y, m, d) {
+        const selected = new Date(y, m, d);
+        if (editMode === "start") {
+          startDate = selected;
+          // 選完出發，若回程比它早，清空回程並直接進入選回程模式
+          if (endDate && startDate >= endDate) endDate = null;
+          editMode = "end";
+          render();
+        } else {
+          endDate = selected;
+          updateDisplay();
+          document.getElementById("calendarPanel").classList.remove("show");
+          render();
+        }
+      }
+
+      function attachHoverEvents() {
+        const tds = document.querySelectorAll("td[data-date]");
+        tds.forEach((td) => {
+          if (td.classList.contains("disabled")) return;
+
+          td.onmouseenter = () => {
+            const parts = td.dataset.date.split("-");
+            const hoverDate = new Date(parts[0], parts[1] - 1, parts[2]);
+            const txtLabel = td.querySelector(".txt");
+
+            // 文字預覽
+            if (!td.classList.contains("selected")) {
+              txtLabel.innerText = editMode === "start" ? "出發" : "回程";
+            }
+
+            // 區間預覽
+            if (editMode === "end" && startDate && !endDate) {
+              tds.forEach((t) => {
+                const p = t.dataset.date.split("-");
+                const d = new Date(p[0], p[1] - 1, p[2]);
+                if (d > startDate && d < hoverDate) t.classList.add("hover-range");
+              });
+            }
+          };
+          td.onmouseleave = () => {
+            const txtLabel = td.querySelector(".txt");
+            if (!td.classList.contains("selected")) txtLabel.innerText = "";
+            tds.forEach((t) => t.classList.remove("hover-range"));
+          };
+        });
+      }
+
+      function updateDisplay() {
+        const fmt = (d) => {
+          if (!d) return "";
+          const year = d.getFullYear();
+          const month = (d.getMonth() + 1).toString().padStart(2, "0");
+          const date = d.getDate().toString().padStart(2, "0");
+          return `${year}/${month}/${date}`;
+        };
+        document.getElementById("startVal").innerText = fmt(startDate);
+        document.getElementById("endVal").innerText = fmt(endDate);
+      }
+
+      function moveMonth(n) {
+        viewDate.setMonth(viewDate.getMonth() + n);
+        render();
+      }
+
+      function resetAll(e) {
+        e.stopPropagation();
+        startDate = null;
+        endDate = null;
+        editMode = "start";
+        render();
+      }
+      function resetEnd(e) {
+        e.stopPropagation();
+        endDate = null;
+        editMode = "end";
+        render();
+      }
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".date-wrap")) document.getElementById("calendarPanel").classList.remove("show");
+      });
+
+      // 啟動：這會讓 2026/01/14 和 2026/03/14 自動出現
+      render();
+    </script>
+  </body>
+</html>

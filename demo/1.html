@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雙月日期範圍選擇器</title>
+    <style>
+      body {
+        font-family: Verdana, Arial, "Microsoft JhengHei", "Microsoft YaHei";
+        padding: 50px;
+        background-color: #f9f9f9;
+      }
+      h2 {
+        margin-bottom: 20px;
+        color: #333;
+      }
+
+      .inputSkin_Parent {
+        position: relative;
+        display: inline-block;
+        width: 280px;
+        background-color: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .inputSkin_Parent input {
+        width: 100%;
+        padding: 6px 8px;
+        font-size: 14px;
+        color: #444;
+        border: none;
+        outline: none;
+        box-sizing: border-box;
+        cursor: pointer;
+      }
+
+      .inputSkin_Parent:focus-within {
+        border-color: #ff625d;
+        box-shadow: 0 0 0 2px rgba(255, 98, 93, 0.2);
+      }
+
+      .inputSkin_Parent:hover {
+        border-color: #ff625d;
+      }
+
+      .calendarPopup {
+        position: absolute;
+        top: 38px;
+        left: 0;
+        width: 540px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        z-index: 20;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        display: none;
+        padding: 10px;
+        display: flex;
+        gap: 10px;
+      }
+
+      .calendarPopup table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 4px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .calendarPopup th {
+        color: #ff625d;
+        padding: 4px 0;
+      }
+
+      .calendarPopup td {
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        border-radius: 4px;
+        position: relative;
+      }
+
+      .date_box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+      }
+
+      .date_num {
+        font-weight: bold;
+      }
+
+      .txt {
+        font-size: 10px;
+        color: #fff;
+      }
+
+      .calendarPopup td:hover {
+        background-color: #ff625d;
+        color: #fff;
+      }
+
+      .calendarPopup .selected {
+        background-color: #ff625d;
+        color: #fff;
+        font-weight: bold;
+      }
+
+      .calendarPopup .in-range {
+        background-color: rgba(255, 98, 93, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <h2>選擇出發區間</h2>
+
+    <div class="inputSkin_Parent">
+      <input type="text" id="dateRange" readonly />
+      <div class="calendarPopup" id="calendarPopup"></div>
+    </div>
+
+    <script>
+      const input = document.getElementById("dateRange");
+      const calendarPopup = document.getElementById("calendarPopup");
+
+      const startDisplay = "出發";
+      const endDisplay = "抵達";
+
+      let startDate = new Date(); // 預設今天
+      let endDate = null; // 初始沒有選擇抵達
+
+      // 格式化日期 YYYY/MM/DD
+      function formatDate(d) {
+        return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
+      }
+
+      // 更新輸入框：今天 ~ 6個月後
+      function updateInput() {
+        const sixMonthsLater = new Date();
+        sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+        input.value = `${formatDate(startDate)} ~ ${formatDate(sixMonthsLater)}`;
+      }
+
+      // 生成單月日曆
+      function generateCalendar(year, month) {
+        const date = new Date(year, month, 1);
+        const firstDay = date.getDay();
+        const lastDate = new Date(year, month + 1, 0).getDate();
+        const today = new Date();
+        let html = "<table><tr>";
+        ["日", "一", "二", "三", "四", "五", "六"].forEach((d) => (html += `<th>${d}</th>`));
+        html += "</tr><tr>";
+        for (let i = 0; i < firstDay; i++) html += "<td></td>";
+        for (let d = 1; d <= lastDate; d++) {
+          const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+          html += `<td data-date="${year}-${month + 1}-${d}" class="${isToday ? "selected" : ""}">
+            <div class="date_box">
+              <span class="date_num">${d}</span>
+              <span class="txt">${isToday ? startDisplay : ""}</span>
+            </div>
+          </td>`;
+          if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+        }
+        html += "</tr></table>";
+        return html;
+      }
+
+      // 標記出發/抵達/範圍
+      function markSelected() {
+        calendarPopup.querySelectorAll("td[data-date]").forEach((td) => {
+          td.classList.remove("selected", "in-range");
+          const txtEl = td.querySelector(".txt");
+          txtEl.textContent = "";
+          const [y, m, d] = td.getAttribute("data-date").split("-").map(Number);
+          const curr = new Date(y, m - 1, d);
+
+          // 出發
+          if (startDate && curr.getTime() === startDate.getTime()) {
+            td.classList.add("selected");
+            txtEl.textContent = startDisplay;
+          }
+
+          // 抵達
+          if (endDate && curr.getTime() === endDate.getTime()) {
+            td.classList.add("selected");
+            if (curr.getTime() !== startDate.getTime()) txtEl.textContent = endDisplay;
+          }
+
+          // 範圍
+          if (startDate && endDate && curr > startDate && curr < endDate) {
+            td.classList.add("in-range");
+          }
+        });
+      }
+
+      // 顯示雙月日曆
+      function showCalendar() {
+        const today = new Date();
+        const month1 = today.getMonth();
+        const year1 = today.getFullYear();
+        const month2 = (month1 + 1) % 12;
+        const year2 = month2 === 0 ? year1 + 1 : year1;
+
+        calendarPopup.innerHTML = `
+        <div>${generateCalendar(year1, month1)}</div>
+        <div>${generateCalendar(year2, month2)}</div>
+      `;
+        markSelected();
+        calendarPopup.style.display = "flex";
+
+        calendarPopup.querySelectorAll("td[data-date]").forEach((td) => {
+          td.addEventListener("click", () => {
+            const [y, m, d] = td.getAttribute("data-date").split("-").map(Number);
+            const sel = new Date(y, m - 1, d);
+            if (!startDate || (startDate && endDate)) {
+              startDate = sel;
+              endDate = null;
+            } else {
+              if (sel < startDate) {
+                endDate = startDate;
+                startDate = sel;
+              } else {
+                endDate = sel;
+              }
+            }
+            updateInput();
+            markSelected();
+          });
+        });
+      }
+
+      input.addEventListener("click", showCalendar);
+      document.addEventListener("click", (e) => {
+        if (!input.contains(e.target) && !calendarPopup.contains(e.target)) {
+          calendarPopup.style.display = "none";
+        }
+      });
+
+      // 初始化
+      updateInput();
+    </script>
+  </body>
+</html>

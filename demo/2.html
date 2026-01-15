@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雙月日期選擇器（跨月份範圍）</title>
+    <style>
+      body {
+        font-family: "Microsoft JhengHei", Arial;
+        padding: 40px;
+      }
+      .date-wrap {
+        position: relative;
+        width: 280px;
+      }
+      .date-wrap input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+
+      .calendar {
+        position: absolute;
+        top: 42px;
+        left: 0;
+        width: 520px;
+        display: none;
+        gap: 10px;
+        padding: 10px;
+        background: #fff;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+      .month-box {
+        display: flex;
+        gap: 10px;
+      }
+      .calendar_box {
+        width: 50%;
+      }
+      .nav {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .nav button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 0 10px;
+      }
+      table {
+        width: 100%;
+        border-spacing: 4px;
+        text-align: center;
+      }
+      th {
+        color: #ff625d;
+      }
+      td {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      td.disabled {
+        color: #ccc;
+        cursor: default;
+      }
+      td.selected {
+        background: #ff625d;
+        color: #fff;
+      }
+      td.in-range {
+        background: rgba(255, 98, 93, 0.3);
+      }
+      td.in-range-hover {
+        background: rgba(255, 98, 93, 0.2);
+      }
+      .date-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 12px;
+      }
+      .txt {
+        font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>雙月日期選擇器（跨月份範圍）</h3>
+
+    <div class="date-wrap">
+      <input type="text" id="dateInput" readonly />
+      <div class="calendar" id="calendar">
+        <div class="month-box">
+          <div class="calendar_box">
+            <div class="nav">
+              <button class="prev">&#8592;</button>
+              <span id="month1-title"></span>
+            </div>
+            <div id="month1-table"></div>
+          </div>
+          <div class="calendar_box">
+            <div class="nav">
+              <span id="month2-title"></span>
+              <button class="next">&#8594;</button>
+            </div>
+            <div id="month2-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const input = document.getElementById("dateInput");
+      const calendar = document.getElementById("calendar");
+      const month1Table = document.getElementById("month1-table");
+      const month2Table = document.getElementById("month2-table");
+      const month1Title = document.getElementById("month1-title");
+      const month2Title = document.getElementById("month2-title");
+      const prevBtn = calendar.querySelector(".prev");
+      const nextBtn = calendar.querySelector(".next");
+
+      const START_TXT = "出發";
+      const END_TXT = "最晚";
+
+      const normalize = (d) =>
+        new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const format = (d) =>
+        `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}/${String(d.getDate()).padStart(2, "0")}`;
+
+      let startDate = normalize(new Date());
+      let endDate = null;
+      let currentMonth = new Date();
+
+      // 生成月份表格（僅本月可點）
+      function buildMonth(y, m) {
+        const firstDay = new Date(y, m, 1).getDay();
+        const lastDate = new Date(y, m + 1, 0).getDate();
+        let html = "<table><tr>";
+        ["日", "一", "二", "三", "四", "五", "六"].forEach(
+          (d) => (html += `<th>${d}</th>`)
+        );
+        html += "</tr><tr>";
+
+        // 空格填前面
+        for (let i = 0; i < firstDay; i++)
+          html += '<td class="disabled empty"></td>';
+
+        // 本月日期
+        for (let d = 1; d <= lastDate; d++) {
+          html += `<td data-date="${y}-${
+            m + 1
+          }-${d}"><div class="date-box"><span>${d}</span><span class="txt"></span></div></td>`;
+          if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+        }
+
+        // 空格補滿最後一行
+        const totalCells = firstDay + lastDate;
+        const nextDays = (7 - (totalCells % 7)) % 7;
+        for (let i = 0; i < nextDays; i++)
+          html += '<td class="disabled empty"></td>';
+
+        html += "</tr></table>";
+        return html;
+      }
+
+      // 標記
+      function mark() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.classList.remove("selected", "in-range", "in-range-hover");
+          const txt = td.querySelector(".txt");
+          txt.textContent = "";
+          const [y, m, d] = td.dataset.date.split("-").map(Number);
+          const curr = new Date(y, m - 1, d);
+          if (curr.getTime() === startDate.getTime()) {
+            td.classList.add("selected");
+            txt.textContent = START_TXT;
+          }
+          if (endDate && curr.getTime() === endDate.getTime()) {
+            td.classList.add("selected");
+            txt.textContent = END_TXT;
+          }
+          if (startDate && endDate && curr > startDate && curr < endDate)
+            td.classList.add("in-range");
+        });
+      }
+
+      // hover 範圍
+      function hoverMark() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.onmouseenter = () => {
+            if (!endDate) {
+              const [y, m, d] = td.dataset.date.split("-").map(Number);
+              const hoverDate = new Date(y, m - 1, d);
+              calendar.querySelectorAll("td[data-date]").forEach((t) => {
+                t.classList.remove("in-range-hover");
+                const [yy, mm, dd] = t.dataset.date.split("-").map(Number);
+                const curr = new Date(yy, mm - 1, dd);
+                if (
+                  curr.getMonth() === currentMonth.getMonth() ||
+                  curr.getMonth() === currentMonth.getMonth() + 1
+                ) {
+                  if (
+                    (hoverDate > startDate &&
+                      curr > startDate &&
+                      curr <= hoverDate) ||
+                    (hoverDate < startDate &&
+                      curr < startDate &&
+                      curr >= hoverDate)
+                  )
+                    t.classList.add("in-range-hover");
+                }
+              });
+            }
+          };
+        });
+      }
+
+      // 點日期
+      function attachDayClick() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.onclick = () => {
+            if (td.classList.contains("disabled")) return;
+            const [y, m, d] = td.dataset.date.split("-").map(Number);
+            const sel = new Date(y, m - 1, d);
+            if (!endDate) {
+              endDate = sel < startDate ? startDate : sel;
+              if (sel < startDate) startDate = sel;
+            } else {
+              startDate = sel;
+              endDate = null;
+            }
+            updateInput();
+            mark();
+          };
+        });
+      }
+
+      // render
+      function renderCalendar() {
+        const y1 = currentMonth.getFullYear();
+        const m1 = currentMonth.getMonth();
+        const nextMonth = new Date(y1, m1 + 1, 1);
+        const y2 = nextMonth.getFullYear();
+        const m2 = nextMonth.getMonth();
+
+        month1Title.textContent = `${y1} 年 ${m1 + 1} 月`;
+        month2Title.textContent = `${y2} 年 ${m2 + 1} 月`;
+
+        month1Table.innerHTML = buildMonth(y1, m1);
+        month2Table.innerHTML = buildMonth(y2, m2);
+
+        mark();
+        attachDayClick();
+        hoverMark();
+      }
+
+      // 左右箭頭
+      prevBtn.onclick = () => {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+        renderCalendar();
+      };
+      nextBtn.onclick = () => {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+        renderCalendar();
+      };
+
+      // 打開日曆
+      input.onclick = () => {
+        calendar.style.display = "flex";
+        renderCalendar();
+      };
+
+      // 點空白收起
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".date-wrap")) calendar.style.display = "none";
+      });
+
+      // 更新 input
+      function updateInput() {
+        const sixMonth = new Date(startDate);
+        sixMonth.setMonth(sixMonth.getMonth() + 6);
+        input.value = `${format(startDate)} ~ ${format(sixMonth)}`;
+      }
+
+      updateInput();
+    </script>
+  </body>
+</html>

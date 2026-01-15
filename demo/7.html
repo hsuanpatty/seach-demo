@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雙月日期選擇器</title>
+    <link rel="stylesheet" href="./2.css" />
+  </head>
+  <body>
+    <h3 style="font-size: 18px">航班日期預約</h3>
+
+    <div class="date-wrap">
+      <input type="text" id="dateInput" class="pc-only" readonly />
+
+      <div class="mobile-selector mobile-only">
+        <div class="m-input-group" id="mStartBtn">
+          <span class="m-label">出發日期</span>
+          <span class="m-value" id="mStartVal"></span>
+        </div>
+        <div class="m-input-group" id="mEndBtn">
+          <span class="m-label">回程日期</span>
+          <span class="m-value" id="mEndVal"></span>
+        </div>
+      </div>
+
+      <div class="overlay" id="overlay"></div>
+
+      <div class="calendar" id="calendar">
+        <div class="m-close-btn" id="mCloseBtn">✕</div>
+        <div id="statusHint" class="editing-hint">請選擇 [出發日期]</div>
+
+        <div class="month-container">
+          <div class="month-box">
+            <div class="nav">
+              <button id="prevBtn">❮</button>
+              <span id="title1" class="title-text"></span>
+              <button id="nextBtnMobile" class="m-next-btn">❯</button>
+            </div>
+            <div id="table1"></div>
+          </div>
+          <div class="month-box">
+            <div class="nav">
+              <button style="visibility: hidden">❮</button>
+              <span id="title2" class="title-text"></span>
+              <button id="nextBtnPC">❯</button>
+            </div>
+            <div id="table2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./2.js"></script>
+  </body>
+</html>

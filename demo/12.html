@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>框內小標題預覽</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css" />
+
+    <style>
+      :root {
+        --bs-search-red: #ce2222;
+        --text-main: #2d3436;
+        --text-label: #888;
+        --border: #dfe6e9;
+        --shadow: rgba(0, 0, 0, 0.08) 0px 3px 15px;
+        --transition: all 0.2s ease-in-out;
+      }
+
+      body {
+        font-family: "Microsoft JhengHei", sans-serif;
+        background-color: #f4f7f6;
+        padding: 100px 0;
+        display: flex;
+        justify-content: center;
+      }
+
+      /* 搜尋工具主容器 */
+      .sass-search-bar {
+        background: #fff;
+        padding: 12px 20px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        max-width: 900px;
+        width: 100%;
+      }
+
+      /* 輸入框外殼 (共通樣式) */
+      .input-wrap {
+        flex: 1;
+        height: 56px; /* 增加高度以容納上下兩行 */
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 8px 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        cursor: pointer;
+        position: relative;
+        transition: var(--transition);
+      }
+
+      .input-wrap:hover,
+      .input-wrap.is-active {
+        border-color: var(--bs-search-red);
+        background: #fff;
+      }
+
+      /* 小標題樣式 */
+      .input-wrap label {
+        font-size: 12px;
+        color: var(--text-label);
+        margin-bottom: 2px;
+        cursor: pointer;
+      }
+
+      /* 實際內容/輸入框樣式 */
+      .input-field {
+        border: none;
+        background: transparent;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-main);
+        width: 100%;
+        padding: 0;
+        cursor: pointer;
+        outline: none;
+      }
+
+      /* 目的地寬度限制 */
+      .dest-wrap {
+        flex: 0 1 220px;
+      }
+      /* 日期寬度限制 */
+      .date-wrap {
+        flex: 0 1 340px;
+      }
+
+      /* 日期專用內容排列 */
+      .date-display {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .date-sep {
+        color: #ccc;
+        font-weight: normal;
+      }
+
+      /* 搜尋按鈕 */
+      .btn-search {
+        height: 56px;
+        padding: 0 30px;
+        background: var(--bs-search-red);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: var(--transition);
+      }
+      .btn-search:hover {
+        background: #b01b1b;
+      }
+
+      /* --- 日曆彈窗 (與前版本邏輯一致) --- */
+      .calendar-popup {
+        position: absolute;
+        top: 65px;
+        left: 0;
+        background: white;
+        border: 1px solid #eee;
+        box-shadow: var(--shadow);
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 1000;
+        width: 580px;
+        display: none;
+      }
+      .calendar-popup.active {
+        display: block;
+      }
+      .month-flex {
+        display: flex;
+        gap: 20px;
+      }
+      .m-box {
+        flex: 1;
+      }
+      table {
+        width: 100%;
+        text-align: center;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      td {
+        padding: 8px 0;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      .start-date,
+      .end-date {
+        background: var(--bs-search-red) !important;
+        color: #fff;
+      }
+      .in-range {
+        background: rgba(206, 34, 34, 0.05);
+      }
+      .nav-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sass-search-bar">
+      <div class="input-wrap dest-wrap">
+        <label for="dest-input">目的地</label>
+        <input type="text" id="dest-input" class="input-field" value="不限" list="dest-options" />
+        <datalist id="dest-options">
+          <option value="中西歐"></option>
+          <option value="東歐"></option>
+          <option value="南歐"></option>
+          <option value="北歐"></option>
+        </datalist>
+      </div>
+
+      <div class="input-wrap date-wrap" id="dateTrigger">
+        <label>出發區間</label>
+        <div class="date-display">
+          <span id="startShow">2026/01/14</span>
+          <span class="date-sep">~</span>
+          <span id="endShow">2026/03/14</span>
+        </div>
+
+        <div class="calendar-popup" id="calendar">
+          <div class="month-flex">
+            <div class="m-box">
+              <div class="nav-row">
+                <button id="prevM" style="border: none; background: none; cursor: pointer">❮</button>
+                <span id="t1"></span>
+                <span></span>
+              </div>
+              <div id="html1"></div>
+            </div>
+            <div class="m-box">
+              <div class="nav-row">
+                <span></span>
+                <span id="t2"></span>
+                <button id="nextM" style="border: none; background: none; cursor: pointer">❯</button>
+              </div>
+              <div id="html2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-search"><i class="fa fa-search"></i> 搜尋</button>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        let startDate = new Date(2026, 0, 14);
+        let endDate = new Date(2026, 2, 14);
+        let viewDate = new Date(2026, 0, 1);
+
+        const cal = document.getElementById("calendar");
+        const trigger = document.getElementById("dateTrigger");
+
+        function render() {
+          const d1 = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+          const d2 = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+          document.getElementById("t1").innerText = `${d1.getFullYear()}年 ${d1.getMonth() + 1}月`;
+          document.getElementById("t2").innerText = `${d2.getFullYear()}年 ${d2.getMonth() + 1}月`;
+          document.getElementById("html1").innerHTML = makeTable(d1);
+          document.getElementById("html2").innerHTML = makeTable(d2);
+
+          document.querySelectorAll("#calendar td[data-d]").forEach((td) => {
+            td.onclick = (e) => {
+              e.stopPropagation();
+              let clicked = new Date(td.dataset.d);
+              if (!startDate || (startDate && endDate)) {
+                startDate = clicked;
+                endDate = null;
+              } else if (clicked < startDate) {
+                startDate = clicked;
+              } else {
+                endDate = clicked;
+                cal.classList.remove("active");
+                trigger.classList.remove("is-active");
+              }
+              update();
+              render();
+            };
+          });
+        }
+
+        function makeTable(date) {
+          let y = date.getFullYear(),
+            m = date.getMonth();
+          let first = new Date(y, m, 1).getDay();
+          let days = new Date(y, m + 1, 0).getDate();
+          let h = "<table><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>";
+          for (let i = 0; i < first; i++) h += "<td></td>";
+          for (let d = 1; d <= days; d++) {
+            let curr = new Date(y, m, d);
+            let time = curr.getTime();
+            let cls = "";
+            if (startDate && time === startDate.getTime()) cls = "start-date";
+            else if (endDate && time === endDate.getTime()) cls = "end-date";
+            else if (startDate && endDate && time > startDate.getTime() && time < endDate.getTime()) cls = "in-range";
+            h += `<td class="${cls}" data-d="${y}/${m + 1}/${d}">${d}</td>`;
+            if ((d + first) % 7 === 0) h += "</tr><tr>";
+          }
+          return h + "</tr></table>";
+        }
+
+        function update() {
+          document.getElementById("startShow").innerText = startDate.toLocaleDateString("zh-TW");
+          document.getElementById("endShow").innerText = endDate ? endDate.toLocaleDateString("zh-TW") : "請選擇";
+        }
+
+        trigger.onclick = () => {
+          cal.classList.toggle("active");
+          trigger.classList.toggle("is-active");
+        };
+        document.getElementById("prevM").onclick = (e) => {
+          e.stopPropagation();
+          viewDate.setMonth(viewDate.getMonth() - 1);
+          render();
+        };
+        document.getElementById("nextM").onclick = (e) => {
+          e.stopPropagation();
+          viewDate.setMonth(viewDate.getMonth() + 1);
+          render();
+        };
+        document.addEventListener("click", (e) => {
+          if (!e.target.closest("#dateTrigger")) {
+            cal.classList.remove("active");
+            trigger.classList.remove("is-active");
+          }
+        });
+
+        render();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>雙月日期選擇器</title>
+    <style>
+      body {
+        font-family: "Microsoft JhengHei", Arial;
+        padding: 40px;
+      }
+      .date-wrap {
+        position: relative;
+        width: 280px;
+      }
+      .date-wrap input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+      }
+      .calendar {
+        position: absolute;
+        top: 42px;
+        left: 0;
+        width: 520px;
+        display: none;
+        padding: 10px;
+        background: #fff;
+        border: 1px solid #ccc;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+      .month-box {
+        display: flex;
+        gap: 10px;
+      }
+      .calendar_box {
+        width: 50%;
+      }
+      .nav {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      .nav button {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 0 10px;
+      }
+      .nav button:disabled {
+        color: #ccc;
+        cursor: default;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: center;
+      }
+      th {
+        color: #ff625d;
+        padding: 4px 0;
+      }
+      td {
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        position: relative;
+        padding: 0;
+        margin: 0;
+      }
+      td.disabled {
+        color: #ccc;
+        cursor: default;
+      }
+      td.today {
+        background: #ff625d !important;
+        color: #fff !important;
+        border-radius: 6px 0 0 6px;
+        position: relative;
+        z-index: 1;
+      }
+      td.today .txt {
+        color: #fff !important;
+      }
+      td.selected {
+        background: #ff625d !important;
+        color: #fff !important;
+        border-radius: 0 6px 6px 0;
+        position: relative;
+        z-index: 1;
+      }
+      td.selected .txt {
+        color: #fff !important;
+      }
+      td.hover-end {
+        background: #ff625d !important;
+        color: #fff !important;
+        border-radius: 0 6px 6px 0;
+        position: relative;
+        z-index: 1;
+      }
+      td.hover-end .txt {
+        color: #fff !important;
+      }
+      td.hover-range-start {
+        border-radius: 6px 0 0 6px;
+      }
+      td.hover-range {
+        border-radius: 0 !important;
+      }
+      td.in-range::before,
+      td.hover-range::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 98, 93, 0.3);
+        z-index: 0;
+        border-radius: 0;
+      }
+      .date-box {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        font-size: 12px;
+        position: relative;
+        z-index: 1;
+      }
+      .txt {
+        font-size: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>雙月日期選擇器（預設出發日 A 晚 3 天）</h3>
+    <div class="date-wrap">
+      <input type="text" id="dateInput" readonly />
+      <div class="calendar" id="calendar">
+        <div class="month-box">
+          <div class="calendar_box">
+            <div class="nav">
+              <button class="prev">&#8592;</button>
+              <span id="month1-title"></span>
+            </div>
+            <div id="month1-table"></div>
+          </div>
+          <div class="calendar_box">
+            <div class="nav">
+              <span id="month2-title"></span>
+              <button class="next">&#8594;</button>
+            </div>
+            <div id="month2-table"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const input = document.getElementById("dateInput");
+      const calendar = document.getElementById("calendar");
+      const month1Table = document.getElementById("month1-table");
+      const month2Table = document.getElementById("month2-table");
+      const month1Title = document.getElementById("month1-title");
+      const month2Title = document.getElementById("month2-title");
+      const prevBtn = calendar.querySelector(".prev");
+      const nextBtn = calendar.querySelector(".next");
+
+      const START_TXT = "出發";
+      const END_TXT = "抵達";
+      const HOVER_TXT = "抵達";
+
+      const normalize = (d) =>
+        new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const format = (d) =>
+        `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(
+          2,
+          "0"
+        )}/${String(d.getDate()).padStart(2, "0")}`;
+
+      const today = normalize(new Date());
+      let startDate = new Date(today);
+      startDate.setDate(startDate.getDate() + 3); // 預設 A = 今天 + 3
+      let endDate = null;
+      let currentMonth = new Date();
+
+      function buildMonth(y, m) {
+        const firstDay = new Date(y, m, 1).getDay();
+        const lastDate = new Date(y, m + 1, 0).getDate();
+        let html = "<table><tr>";
+        ["日", "一", "二", "三", "四", "五", "六"].forEach(
+          (d) => (html += `<th>${d}</th>`)
+        );
+        html += "</tr><tr>";
+        for (let i = 0; i < firstDay; i++)
+          html += '<td class="disabled empty"></td>';
+        for (let d = 1; d <= lastDate; d++) {
+          const cellDate = new Date(y, m, d);
+          const isDisabled = cellDate < today ? "disabled" : "";
+          html += `<td data-date="${y}-${m + 1}-${d}" class="${isDisabled}">
+          <div class="date-box"><span>${d}</span><span class="txt"></span></div>
+        </td>`;
+          if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+        }
+        const totalCells = firstDay + lastDate;
+        const nextDays = (7 - (totalCells % 7)) % 7;
+        for (let i = 0; i < nextDays; i++)
+          html += '<td class="disabled empty"></td>';
+        html += "</tr></table>";
+        return html;
+      }
+
+      function mark() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.classList.remove(
+            "selected",
+            "in-range",
+            "hover-end",
+            "today",
+            "hover-range-start"
+          );
+          const txt = td.querySelector(".txt");
+          txt.textContent = "";
+          const [y, m, d] = td.dataset.date.split("-").map(Number);
+          const curr = new Date(y, m - 1, d);
+          if (curr.getTime() === startDate.getTime()) {
+            td.classList.add("today");
+            txt.textContent = START_TXT;
+          }
+          if (endDate && curr.getTime() === endDate.getTime()) {
+            td.classList.add("selected");
+            txt.textContent = END_TXT;
+          }
+          if (endDate && curr > startDate && curr < endDate)
+            td.classList.add("in-range");
+        });
+      }
+
+      function hoverMark() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.onmouseenter = () => {
+            if (td.classList.contains("disabled")) return;
+            const [y, m, d] = td.dataset.date.split("-").map(Number);
+            const hoverDate = new Date(y, m - 1, d);
+            let hoverCells = [];
+            calendar.querySelectorAll("td[data-date]").forEach((t) => {
+              const [yy, mm, dd] = t.dataset.date.split("-").map(Number);
+              const curr = new Date(yy, mm - 1, dd);
+              if (curr >= startDate && curr <= hoverDate) hoverCells.push(t);
+              t.classList.remove(
+                "hover-range",
+                "hover-end",
+                "hover-range-start"
+              );
+              if (
+                !(
+                  curr.getTime() === startDate.getTime() ||
+                  (endDate && curr.getTime() === endDate.getTime())
+                )
+              )
+                t.querySelector(".txt").textContent = "";
+            });
+            hoverCells.forEach((t, i) => {
+              if (i === 0) t.classList.add("hover-range-start");
+              else if (i === hoverCells.length - 1) {
+                t.classList.add("hover-end");
+                t.querySelector(".txt").textContent = HOVER_TXT;
+              } else t.classList.add("hover-range");
+            });
+          };
+          td.onmouseleave = () => {
+            mark();
+          };
+        });
+      }
+
+      function attachDayClick() {
+        calendar.querySelectorAll("td[data-date]").forEach((td) => {
+          td.onclick = () => {
+            if (td.classList.contains("disabled")) return;
+            const [y, m, d] = td.dataset.date.split("-").map(Number);
+            endDate = new Date(y, m - 1, d);
+            updateInput();
+            mark();
+            calendar.style.display = "none";
+          };
+        });
+      }
+
+      function renderCalendar() {
+        const y1 = currentMonth.getFullYear();
+        const m1 = currentMonth.getMonth();
+        const nextMonth = new Date(y1, m1 + 1, 1);
+        const y2 = nextMonth.getFullYear();
+        const m2 = nextMonth.getMonth();
+        month1Title.textContent = `${y1} 年 ${m1 + 1} 月`;
+        month2Title.textContent = `${y2} 年 ${m2 + 1} 月`;
+        month1Table.innerHTML = buildMonth(y1, m1);
+        month2Table.innerHTML = buildMonth(y2, m2);
+        mark();
+        attachDayClick();
+        hoverMark();
+        const prevMonth = new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() - 1,
+          1
+        );
+        prevBtn.disabled = prevMonth < today;
+      }
+
+      prevBtn.onclick = () => {
+        currentMonth.setMonth(currentMonth.getMonth() - 1);
+        renderCalendar();
+      };
+      nextBtn.onclick = () => {
+        currentMonth.setMonth(currentMonth.getMonth() + 1);
+        renderCalendar();
+      };
+      input.onclick = () => {
+        calendar.style.display = "flex";
+        renderCalendar();
+      };
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".date-wrap")) calendar.style.display = "none";
+      });
+
+      function updateInput() {
+        const sixMonth = new Date(startDate);
+        sixMonth.setMonth(sixMonth.getMonth() + 6);
+        input.value = `${format(startDate)} ~ ${
+          endDate ? format(endDate) : format(sixMonth)
+        }`;
+      }
+
+      updateInput();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2026 精緻寬版日期器</title>
+    <style>
+      body {
+        font-family: "Microsoft JhengHei", sans-serif;
+        padding: 40px;
+        background: #f4f4f4;
+      }
+
+      /* --- 1. 輸入框加寬且內部空間拉開 --- */
+      .date-selector-wrapper {
+        display: flex;
+        align-items: center;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 12px;
+        width: 100%;
+        max-width: 650px; /* 寬度增加 */
+        height: 90px; /* 高度增加，點擊感更好 */
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        margin: 0 auto;
+        cursor: pointer;
+        overflow: hidden;
+      }
+
+      .date-btn {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 40px; /* 增加左右內距，讓文字往兩邊靠 */
+        transition: background 0.2s;
+      }
+
+      /* 讓出發靠左，抵達靠右 */
+      #sTrigger {
+        align-items: flex-start;
+      }
+      #eTrigger {
+        align-items: flex-end;
+      }
+
+      .separator {
+        width: 1px;
+        height: 40px;
+        background: #eee; /* 將原本的~改為細長分隔線，視覺更乾淨 */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+        position: relative;
+      }
+      .separator::after {
+        content: "~";
+        position: absolute;
+        color: #ccc;
+        font-size: 20px;
+        background: white;
+        padding: 5px;
+      }
+
+      .date-btn:hover,
+      .separator:hover {
+        background: #fffafa;
+      }
+
+      /* --- 2. 文字比例精細化 --- */
+      .label {
+        font-size: 13px; /* 標籤稍微放大一點點 */
+        color: #999;
+        margin-bottom: 6px;
+        letter-spacing: 1px;
+      }
+      .value {
+        font-size: 14px; /* 日期字體縮小，顯得精緻不擁擠 */
+        font-weight: bold;
+        color: #333;
+      }
+
+      /* --- 日曆容器與精準點擊 --- */
+      .container-rel {
+        position: relative;
+        width: fit-content;
+        margin: 0 auto;
+      }
+
+      .calendar {
+        position: absolute;
+        top: 105px; /* 配合增加的高度調整 */
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        visibility: hidden;
+        background: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+        z-index: 999;
+        border-radius: 12px;
+        width: 650px;
+        transition: all 0.3s ease;
+      }
+      .calendar.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      .month-container {
+        display: flex;
+        gap: 30px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+      }
+      th {
+        color: #ff625d;
+        font-size: 13px;
+        padding-bottom: 10px;
+      }
+
+      td {
+        height: 50px;
+        text-align: center;
+        position: relative;
+        pointer-events: none; /* 禁止背景點擊 */
+      }
+
+      .date-box {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        pointer-events: auto; /* 僅數字區域可點擊 */
+        transition: 0.2s;
+        position: relative;
+        z-index: 5;
+      }
+      .date-box:hover {
+        background: #f0f0f0;
+      }
+
+      td.start-date .date-box,
+      td.end-date .date-box,
+      td.hover-end .date-box {
+        background: #ff625d !important;
+        color: #fff !important;
+      }
+      td.in-range::before,
+      td.hover-range::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 32px;
+        background: rgba(255, 98, 93, 0.08);
+        z-index: 1;
+        transform: translateY(-50%);
+      }
+
+      .nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      .nav button {
+        border: none;
+        background: #f5f5f5;
+        padding: 5px 12px;
+        cursor: pointer;
+        border-radius: 6px;
+      }
+      .hint {
+        color: #ff625d;
+        font-weight: bold;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container-rel">
+      <div class="date-selector-wrapper" id="mainWrapper">
+        <div class="date-btn" id="sTrigger">
+          <span class="label">出發日期</span>
+          <span class="value" id="startVal"></span>
+        </div>
+        <div class="separator" id="rTrigger"></div>
+        <div class="date-btn" id="eTrigger">
+          <span class="label">抵達日期</span>
+          <span class="value" id="endVal"></span>
+        </div>
+      </div>
+
+      <div class="calendar" id="calendar">
+        <div id="statusHint" class="hint"></div>
+        <div class="month-container">
+          <div class="month-box">
+            <div class="nav">
+              <button onclick="moveMonth(-1)">❮</button
+              ><span id="title1"></span>
+            </div>
+            <div id="table1"></div>
+          </div>
+          <div class="month-box">
+            <div class="nav">
+              <span id="title2"></span><button onclick="moveMonth(1)">❯</button>
+            </div>
+            <div id="table2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const calendar = document.getElementById("calendar");
+      const statusHint = document.getElementById("statusHint");
+
+      let startDate = new Date(2026, 2, 31);
+      let endDate = null;
+      let viewDate = new Date(2026, 2, 1);
+      let activeMode = "range",
+        rangeStep = 0;
+
+      document.getElementById("sTrigger").onclick = () => openCalendar("start");
+      document.getElementById("eTrigger").onclick = () => openCalendar("end");
+      document.getElementById("rTrigger").onclick = () => openCalendar("range");
+
+      function openCalendar(mode) {
+        activeMode = mode;
+        rangeStep = 0;
+        if (mode === "range") {
+          startDate = null;
+          endDate = null;
+        }
+        calendar.classList.add("active");
+        render();
+      }
+
+      function render() {
+        const m1 = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        const m2 = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+        document.getElementById(
+          "title1"
+        ).textContent = `${m1.getFullYear()}年 ${m1.getMonth() + 1}月`;
+        document.getElementById(
+          "title2"
+        ).textContent = `${m2.getFullYear()}年 ${m2.getMonth() + 1}月`;
+        document.getElementById("table1").innerHTML = createTable(m1);
+        document.getElementById("table2").innerHTML = createTable(m2);
+        updateUI();
+      }
+
+      function createTable(monthDate) {
+        const y = monthDate.getFullYear(),
+          m = monthDate.getMonth();
+        const firstDay = new Date(y, m, 1).getDay();
+        const lastDate = new Date(y, m + 1, 0).getDate();
+        let html =
+          "<table><tr><th>日</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th></tr><tr>";
+        for (let i = 0; i < firstDay; i++) html += "<td></td>";
+        for (let d = 1; d <= lastDate; d++) {
+          const dateStr = `${y}-${m + 1}-${d}`;
+          html += `<td data-full="${dateStr}">
+                      <div class="date-box" onclick="selectDate('${dateStr}')" onmouseenter="hoverDate('${dateStr}')">
+                        <span>${d}</span>
+                      </div>
+                    </td>`;
+          if ((firstDay + d) % 7 === 0) html += "</tr><tr>";
+        }
+        return html + "</table>";
+      }
+
+      window.selectDate = (dateStr) => {
+        const d = new Date(dateStr.replace(/-/g, "/"));
+        if (activeMode === "start") {
+          startDate = d;
+          hideCalendar();
+        } else if (activeMode === "end") {
+          endDate = d;
+          hideCalendar();
+        } else {
+          if (rangeStep === 0) {
+            startDate = d;
+            rangeStep = 1;
+          } else {
+            endDate = d;
+            hideCalendar();
+          }
+        }
+        updateDisplay();
+        render();
+      };
+
+      window.hoverDate = (dateStr) => {
+        if (activeMode === "range" && rangeStep === 1) {
+          const h = new Date(dateStr.replace(/-/g, "/"));
+          updateUI(h);
+        }
+      };
+
+      function updateUI(hover = null) {
+        document.querySelectorAll("td[data-full]").forEach((td) => {
+          const curr = new Date(td.dataset.full.replace(/-/g, "/"));
+          td.classList.remove(
+            "start-date",
+            "end-date",
+            "in-range",
+            "hover-range",
+            "hover-end"
+          );
+          if (startDate && curr.getTime() === startDate.getTime())
+            td.classList.add("start-date");
+          if (endDate && curr.getTime() === endDate.getTime())
+            td.classList.add("end-date");
+          if (hover && curr > startDate && curr < hover)
+            td.classList.add("hover-range");
+          if (hover && curr.getTime() === hover.getTime())
+            td.classList.add("hover-end");
+          if (startDate && endDate && curr > startDate && curr < endDate)
+            td.classList.add("in-range");
+        });
+        statusHint.textContent =
+          activeMode === "range"
+            ? rangeStep === 0
+              ? "選擇出發日期"
+              : "選擇抵達日期"
+            : "修改日期";
+      }
+
+      function updateDisplay() {
+        const f = (d) =>
+          d
+            ? `${d.getFullYear()}/${(d.getMonth() + 1)
+                .toString()
+                .padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}`
+            : "請選擇";
+        document.getElementById("startVal").textContent = f(startDate);
+        document.getElementById("endVal").textContent = f(endDate);
+      }
+
+      function moveMonth(n) {
+        viewDate.setMonth(viewDate.getMonth() + n);
+        render();
+      }
+      function hideCalendar() {
+        calendar.classList.remove("active");
+      }
+
+      document.addEventListener("click", (e) => {
+        if (!e.target.closest(".container-rel")) hideCalendar();
+      });
+
+      updateDisplay();
+    </script>
+  </body>
+</html>
